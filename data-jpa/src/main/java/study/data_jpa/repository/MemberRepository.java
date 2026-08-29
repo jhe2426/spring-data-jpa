@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import study.data_jpa.entity.Member;
 
+import java.util.List;
+
 /*
     제네릭 타입
     - T: 엔티티
@@ -28,4 +30,24 @@ import study.data_jpa.entity.Member;
 */
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
+    /*
+        스프링 데이터 JPA가 제공하는 쿼리 메서드 기능 3가지
+        - 메서드 이름으로 쿼리 생성
+        - 메서드 이름으로 JPA NamedQuery 호출
+        - @Query 애노테이션을 사용해서 레파지토리 인터페이스에 쿼리 직접 정의
+    */
+
+    /*
+        메서드 이름으로 쿼리 생성
+        - 조회: find…By, read…By, query…By get…By
+            - 예:) findHelloBy 처럼 ...에 식별하기 위한 내용(설명)이 들어가도 된다.
+        - COUNT: count…By 반환타입 long
+        - EXISTS: exists…By 반환타입 boolean
+        - 삭제: delete…By, remove…By 반환타입 long
+        - DISTINCT: findDistinct, findMemberDistinctBy
+        - LIMIT: findFirst3, findFirst, findTop, findTop3
+    */
+    List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
+    List<Member> findHelloBy(); // Member 전체 조회 쿼리
+    List<Member> findTop3HelloBy();
 }
