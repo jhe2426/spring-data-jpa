@@ -1,6 +1,8 @@
 package study.data_jpa.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import study.data_jpa.entity.Member;
 
@@ -34,7 +36,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
         스프링 데이터 JPA가 제공하는 쿼리 메서드 기능 3가지
         - 메서드 이름으로 쿼리 생성
         - 메서드 이름으로 JPA NamedQuery 호출
-        - @Query 애노테이션을 사용해서 레파지토리 인터페이스에 쿼리 직접 정의
+        - @Query 애노테이션을 사용해서 리포지토리 인터페이스에 쿼리 직접 정의
     */
 
     /*
@@ -50,4 +52,15 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
     List<Member> findHelloBy(); // Member 전체 조회 쿼리
     List<Member> findTop3HelloBy();
+
+    /*  메서드 이름으로 JPA NamedQuery 호출
+        @Query(name = "Member.findByUsername") 생략 가능
+        - 스프링 데이터 JPA는 선언한 "도메인 클래스(JpaRepository<Member, Long>로 선언한 Member) + .(점) +
+            메서드 이름(지금 작성한 메서드 이름)"으로 Named 쿼리를 찾아서 실행
+        - 만약 실행할 Named 쿼리가 없으면 메서드 이름으로 쿼리 생성 전략을 사용한다.
+        - 참고: 스프링 데이터 JPA를 사용하면 실무에서 Named Query를 직접 등록해서 사용하는 일은 드물다.
+            대신 @Query를 사용해서 리파지토리 메서드에 쿼리를 직접 정의한다.
+    */
+//    @Query(name = "Member.findByUsername")
+    List<Member> findByUsername(@Param("username") String username);
 }
