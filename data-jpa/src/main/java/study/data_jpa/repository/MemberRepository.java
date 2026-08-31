@@ -63,4 +63,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     */
 //    @Query(name = "Member.findByUsername")
     List<Member> findByUsername(@Param("username") String username);
+
+    // @Query 애노테이션을 사용해서 리포지토리 인터페이스에 쿼리 직접 정의
+    @Query("select m from Member m where m.username = :username and m.age = :age")
+    List<Member> findMember(@Param("username") String username, @Param("age") int age);
 }
