@@ -205,4 +205,20 @@ class MemberRepositoryTest {
         }
     }
 
+    @Test
+    public void returnType() throws Exception {
+        // given
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("BBB", 20);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        // when
+        List<Member> findMember = memberRepository.findListByUsername("AAA");
+        Member findMember2 = memberRepository.findMemberByUsername("AAA");
+        System.out.println("findMember2 = " + findMember2);
+        Optional<Member> findMember3 = memberRepository.findOptionalByUsername("AAA");
+
+    }
+
 }
