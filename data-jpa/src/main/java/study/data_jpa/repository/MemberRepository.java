@@ -92,7 +92,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     */
     List<Member> findListByUsername(String username); // 컬렉션
     /*
-        단건으로 지정한 메서드를 호출하면 스플이 데이터 JPA는 내부에서 JPQL의 Query.getSingleResult() 메서드를 호출함
+        단건으로 지정한 메서드를 호출하면 스프링이 데이터 JPA는 내부에서 JPQL의 Query.getSingleResult() 메서드를 호출함
         이 메서드를 호출했을 때 조회 결과가 없으면 jakarta.persistence.NoResultException 예외가 발생하는데
         개발자 입장에서는 다루기가 상당히 불편하므로 스프링 데이터 JPA는 단건을 조회할 때 이 예외가 발생하면 해당 예외를 try-catch로 잡아서
         null을 반환해준다.
