@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -124,7 +125,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
         데이터 조회 쿼리는 limit을 사용하여 필요한 개수만 반환하지만, count 쿼리는 조건에 해당하는 전체 데이터를 확인해야 하므로
             데이터가 많아질수록 성능 저하가 발생할 수 있다.
         특히 조회 쿼리에 여러 join이 포함되어 있으면 자동으로 생성되는 count 쿼리에도 불필요한 join이 포함될 수 있다.
-        연간 데이터가 조회 결과를 구성하기 위해서만 필요하고, 검색 조건이나 전체 개수에는 영향을 주지 않는다면 count 쿼리에는 해당 Join을 제거할 수 있다.
+        연관 데이터가 조회 결과를 구성하기 위해서만 필요하고, 검색 조건이나 전체 개수에는 영향을 주지 않는다면 count 쿼리에는 해당 Join을 제거할 수 있다.
         따라서 개발자는 join을 제거해도 전체 개수가 동일한지 판단한 뒤, 더 단순한 count 쿼리를 별도로 작성하여 페이징 성능을 최적화해야 한다.
         단, 조인된 테이블의 컬럼이 검색 조건에 사용되거나 join이 결과 개수에 영향을 준다면 count 쿼리에서도 해당 join을 제거하면 안 된다.
     */
@@ -132,4 +133,27 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
             countQuery = "select count(m) from Member m")
     Page<Member> findCountQueryByAge(int age, Pageable pageable);
 
+    /*
+        @Modifying
+        - Spring Data JPA에서 @Query로 작성한 쿼리가 SELECT 조회 쿼리가 아니라 UPDATE / DELETE와 같이 DB 데이터를 변경하는 쿼리임을
+            Spring에게 알려주는 애노테이션
+            @Query: 실행할 JPQL을 정의
+            @Modifying: 해당 JPQL이 조회가 아닌 변경 쿼리임을 지정
+        - 주의: UPDATE / DELETE 벌크 연산은 영속성 컨텍스트의 엔티티를 하나씩 변경하는 것이 아니라 DB에 직접 쿼리를 실행
+            따라서 벌크 연산 이후 영속성 컨텍스트의 값과 DB의 값이 다른 상태가 발생할 수 있음
+            이 경우 @Modifying의 clearAutomatically = true 속성을 사용하면 변경 쿼리 실행 후 영속성 컨텍스트를 자동으로 clear할 수 있다.
+
+        @Modifying 쿼리의 트랜잭션
+        - UPDATE / DELETE 같은 변경 쿼리는 실행 시점에 활성 트랜잭션이 필요하다.
+        - 트랜잭션은 반드시 Repository 메서드 자체에 @Transactional을 선언해야 하는 것은 아니다.
+        - 상위 Service 메서드에서 이미 @Transactional로 트랜잭션을 시작했다면 Repository의 @Modifying 메서드는 해당 트랜잭션 안에서 실행될 수 있다.
+        - Service에도 @Transactional이 없고 Repository 메서드에도 @Transactional이 없다면 변경 쿼리를 실행할 활성 트랜잭션이 없으므로
+            TransactionRequiredException 등의 문제가 발생할 수 있다.
+        - @Query 또한 JPA의 JPQL이고, JPQL로 실제 DB 데이터를 변경하려면 트랜잭션 내부에서 실행되어야 한다.
+            그런데 트랜잭션이 없으면 DB 변경 작업을 정상적으로 수행할 수 없기 때문에 예외가 발생한다.
+     */
+
+    @Modifying(clearAutomatically = true)
+    @Query(value = "update Member m set m.age = m.age + 1 where m.age >= :age")
+    int bulkAgePlus(@Param("age") int age);
 }
