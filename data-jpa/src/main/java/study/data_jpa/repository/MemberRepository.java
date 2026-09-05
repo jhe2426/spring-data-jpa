@@ -3,6 +3,7 @@ package study.data_jpa.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -156,4 +157,103 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Modifying(clearAutomatically = true)
     @Query(value = "update Member m set m.age = m.age + 1 where m.age >= :age")
     int bulkAgePlus(@Param("age") int age);
+
+    @Query("select m from Member m left join fetch m.team")
+    List<Member> findMemberFetchJoin();
+
+    /*
+        [EntityGraph]
+        - EntityGraph는 JPA 표준에서 제공하는 Fetch Plan 기능이다.
+            LAZY로 설정된 연관관계라도 특정 조회에서 함께 로딩할 연관관계를 지정할 수 있다.
+            Fetch Plan: 이번 쿼리에서 어디까지 데이터를 가져올지 정하는 로딩 계획
+
+        - 다만 현재 Repository에서 사용하는 @EntityGraph 애노테이션 자체는 Spring Data JPA가
+            JPA의 EntityGraph 기능을 편리하게 사용할 수 있도록 제공하는 애노테이션이다.
+
+        EntityGraph 개념 및 @NamedEntityGraph → JPA 표준
+        Repository의 @EntityGraph           → Spring Data JPA 편의 기능
+
+
+        [attributePaths]
+        @EntityGraph(attributePaths = "team")
+        - Member를 조회할 때 team도 함께 조회하도록 Fetch Plan을 변경한다.
+        - Member.team이 LAZY로 설정되어 있어도 해당 조회에서는 team까지 함께 로딩할 수 있다.
+
+
+        [EntityGraph와 LEFT OUTER JOIN]
+        - EntityGraph는 JOIN 종류를 직접 지정하는 기능은 아니다.
+            어떤 연관관계를 함께 로딩할 것인지를 지정하는 Fetch Plan이다.
+
+        - 다만 Hibernate가 EntityGraph를 실제 SQL로 구현할 때 LEFT OUTER JOIN 형태의 SQL을 생성하는 경우가 많다.
+
+        - EntityGraph의 목적은 연관관계를 함께 조회하는 것이지 연관 엔티티가 존재하지 않는 원본 엔티티를 조회 결과에서 제외하는 것이 아니다.
+
+          예를 들어 Member.team이 null일 수 있다고 가정하면
+
+          Member1 -> TeamA
+          Member2 -> null
+
+          Member 전체를 조회하면서 team을 EntityGraph로 가져오려고 할 때
+            INNER JOIN을 사용하면 Team이 없는 Member2가 조회 결과에서 사라질 수 있다.
+
+          INNER JOIN
+          Member1 -> 조회 O
+          Member2 -> 조회 X
+
+          LEFT OUTER JOIN
+          Member1 -> 조회 O, TeamA 함께 조회
+          Member2 -> 조회 O, Team은 null
+
+        - 따라서 원래 조회 대상인 Member는 그대로 유지하면서 존재하는
+            Team만 함께 로딩하기 위해 Hibernate가 LEFT OUTER JOIN으로 구현하는 경우가 많다.
+
+        - 단, EntityGraph = LEFT JOIN이라고 정의된 것은 아니다.
+              EntityGraph는 Fetch Plan을 지정하는 JPA 기능이고, 실제 SQL의 JOIN 방식은
+                JPA 구현체(Hibernate)의 처리 방식과 연관관계 매핑 등에 따라 달라질 수 있다.
+
+
+        [JPQL Fetch Join과 차이]
+        - Fetch Join은 JPQL에서 JOIN 종류와 조회 구조를 직접 작성한다.
+
+          select m from Member m join fetch m.team
+          → INNER JOIN FETCH
+
+          select m from Member m left join fetch m.team
+          → LEFT OUTER JOIN FETCH
+
+        - 따라서 JPQL Fetch Join에서는 join fetch와 left join fetch의 의미가 명확하게 다르다.
+
+        - EntityGraph는 쿼리 자체에서 JOIN 구조를 작성하는 것이 아니라 기존 조회 쿼리에
+            이 연관관계도 함께 가져와라라는 Fetch Plan을 추가한다.
+
+
+        [사용 기준]
+        - 단순 조회에서 특정 연관관계만 함께 가져오고 싶다면 @EntityGraph를 사용하면 JPQL을 직접 작성하지 않아도 되어 편리하다.
+
+        - 조건이 복잡하거나 JOIN의 종류를 직접 선택해야 하거나, 여러 JOIN과 WHERE 조건을 세밀하게 제어해야 한다면
+            JPQL + Fetch Join을 직접 작성하는 편이 명확하다.
+
+        정리
+        단순 Fetch Plan 변경
+        → @EntityGraph
+
+        복잡한 조회 / JOIN 구조 직접 제어
+        → JPQL + Fetch Join
+    */
+    /*
+        Spring Data JPA가 기본으로 제공하는 findAll() 같은 메서드도 Repository 인터페이스에서 다시 선언한 뒤 @EntityGraph를 적용할 수 있다.
+        즉 findAll()의 조회 로직을 직접 새로 구현하는 것이 아니라, Spring Data JPA가 제공하는 기존 메서드를 그대로 사용하면서
+            해당 조회에만 특정 연관관계를 함께 로딩하도록 설정할 수 있다.
+    */
+    @Override
+    @EntityGraph(attributePaths = ("team"))
+    List<Member> findAll();
+
+    @EntityGraph(attributePaths = ("team"))
+    @Query("select m from Member m")
+    List<Member> findMemberEntityGraph();
+
+//    @EntityGraph(attributePaths = ("team"))
+    @EntityGraph("Member.all")
+    List<Member> findEntityGraphByUsername(@Param("username") String username);
 }
