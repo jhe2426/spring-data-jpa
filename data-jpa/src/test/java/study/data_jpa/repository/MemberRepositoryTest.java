@@ -448,4 +448,44 @@ class MemberRepositoryTest {
         }
     }
 
+    @Test
+    public void queryHint() {
+        // given
+        Member member1 = memberRepository.save(new Member("member1", 10));
+        memberRepository.save(member1);
+        em.flush();
+        em.clear();
+
+        // when
+        /*
+            Member findMember = memberRepository.findById(member1.getId()).get();
+            // findMember.changeUsername("member2");
+            - JPA는 영속 상태의 엔티티에 대해 변경 감지(Dirty Checking)를 수행하기 위해 현재 관리 중인 엔티티의 상태뿐만 아니라,
+                엔티티를 조회한 시점의 동일한 상태값을 스냅샷으로 별도 보관한다.
+            - 즉, 하나의 엔티티를 조회하더라도 영속성 컨텍스트는 현재 엔티티의 상태와 비교 기준이 되는 스냅샷이라는
+                두 개의 상태 정보를 메모리에 유지하게 된다.
+            - 따라서 조회 후 실제로 엔티티의 값을 변경하지 않더라도, 일반적인 영속 엔티티 조회에서는 현재 엔티티 상태와 비교하기 위한
+                최초 조회 시점의 스냅샷이 영속성 컨텍스트 내부에 유지된다.
+            - 이후 엔티티의 필드 값이 변경되면 현재 엔티티의 상태가 변경되고, flush 시점에 현재 상태와 최초 조회 시점의 스냅샷을 비교하여
+                변경이 감지된 경우 UPDATE SQL을 실행한다.
+            - 즉, 단순 조회 목적으로 엔티티를 가져온 경우에도 기본적으로 Dirty Checking을 위한 스냅샷 관리 비용이 발생한다.
+        */
+        Member findMember = memberRepository.findReadOnlyByUsername("member1");
+        findMember.changeUsername("member2");
+
+        em.flush();
+    }
+
+    @Test
+    public void lock() throws Exception {
+        // given
+        Member member1 = memberRepository.save(new Member("member1", 10));
+        memberRepository.save(member1);
+        em.flush();
+        em.clear();
+
+        // when
+        List<Member> result = memberRepository.findLockByUsername("member1");
+    }
+
 }

@@ -1,12 +1,11 @@
 package study.data_jpa.repository;
 
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import study.data_jpa.dto.MemberDto;
@@ -256,4 +255,50 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 //    @EntityGraph(attributePaths = ("team"))
     @EntityGraph("Member.all")
     List<Member> findEntityGraphByUsername(@Param("username") String username);
+
+    /*
+        @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true"))
+        -  Hibernate에게 해당 조회 결과를 읽기 전용 엔티티로 관리하도록 알려주는 Query Hint이다.
+        - 읽기 전용으로 조회된 엔티티는 변경 감지(Dirty Checking)의 대상에서 제외되므로
+             일반적인 영속 엔티티 조회에서 변경 감지를 위해 유지하는 스냅샷 관리 비용을 줄일 수 있다.
+        - 따라서 조회한 엔티티를 수정할 필요가 없는 조회 전용 API에서 메모리 사용량과 Dirty Checking 비용을 일부 줄이는 최적화로 사용할 수 있다.
+        - 또한 읽기 전용으로 조회된 엔티티는 Dirty Checking 대상에서 제외되므로, 엔티티의 필드 값을 변경하더라도
+            flush/commit 시점에 변경 감지가 수행되지 않아 해당 변경 내용에 대한 UPDATE SQL이 자동으로 실행되지 않는다.
+
+        [실무 사용 시 주의]
+        - 조회 전용 메서드라고 해서 모든 Repository 메서드에 이 Query Hint를 일괄적으로 적용하는 것은 일반적인 성능 튜닝 방법이라고 보기 어렵다.
+        - readOnly Query Hint가 줄여주는 것은 주로 영속성 컨텍스트의 스냅샷 관리 및 Dirty Checking 비용이므로,
+            DB 조회 자체의 비용이나 네트워크 비용을 제거하는 것은 아니다.
+        - 따라서 이 설정 하나만으로 조회 성능이 드라마틱하게 향상된다고 기대하기보다는, 많은 엔티티를 조회하거나 Dirty Checking 비용이 의미 있게 발생하는
+            일부 조회 API에서 적용을 검토하는 정도로 이해하는 것이 좋다.
+        - 반복적으로 동일한 데이터를 조회하여 DB 부하 자체가 문제가 되는 경우에는 Query Hint보다 Redis 등의 캐시를 이용하여 DB 조회 자체를 줄이는 방식이
+            더 큰 성능 개선을 가져올 수 있다.
+
+    */
+    @QueryHints(value = @QueryHint(name = "org.hibernate.readOnly", value = "true"))
+    Member findReadOnlyByUsername(String username);
+
+    /*
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+
+        조회된 데이터에 DB 수준의 비관적 쓰기 락을 적용한다.
+        일반적으로 SELECT ... FOR UPDATE 형태로 실행되며,
+        트랜잭션이 COMMIT 또는 ROLLBACK될 때까지 락이 유지된다.
+
+        락은 기본적으로 테이블 전체가 아니라 해당 쿼리가 조회한 row에 적용된다.
+        따라서 id=1에 락이 걸렸다고 해서 id=2, id=3에 대한 접근까지 모두 막히는 것은 아니다.
+        다만 같은 row를 수정하거나 동일한 쓰기 락을 획득하려는 다른 트랜잭션은 대기하게 된다.
+        조회 조건, 인덱스, DB 종류에 따라 실제 잠금 범위가 더 넓어질 수 있다.
+
+        동일 데이터에 요청이 집중되는 실시간 고트래픽 환경에서는
+        락 대기로 인해 응답 지연과 처리량 저하가 발생할 수 있으므로 신중하게 사용한다.
+
+        반면 처리 속도보다 계산 결과와 데이터 정합성이 중요한 로직에서는 유용하다.
+        예를 들어 정산, 잔액 처리, 재고 차감, 중복 처리 방지처럼
+        동일 데이터를 동시에 수정했을 때 잘못된 결과가 발생하면 안 되는 경우에 선택적으로 사용한다.
+
+        동시 접근을 제어하여 데이터 정합성을 보장하기 위한 기능이다.
+    */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Member> findLockByUsername(String username);
 }
