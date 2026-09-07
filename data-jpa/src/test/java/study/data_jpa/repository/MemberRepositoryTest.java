@@ -35,6 +35,9 @@ class MemberRepositoryTest {
     @PersistenceContext
     EntityManager em;
 
+    @Autowired
+    MemberQueryRepository memberQueryRepository;
+
     @Test
     public void testMember() throws Exception {
         // given
@@ -487,5 +490,11 @@ class MemberRepositoryTest {
         // when
         List<Member> result = memberRepository.findLockByUsername("member1");
     }
+
+    @Test
+    public void callCoustom() {
+        List<Member> result = memberRepository.findMemberCustom();
+    }
+
 
 }
