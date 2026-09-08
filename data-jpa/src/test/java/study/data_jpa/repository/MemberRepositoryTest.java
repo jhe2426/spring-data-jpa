@@ -492,7 +492,7 @@ class MemberRepositoryTest {
     }
 
     @Test
-    public void callCoustom() {
+    public void callCustom() {
         List<Member> result = memberRepository.findMemberCustom();
     }
 
