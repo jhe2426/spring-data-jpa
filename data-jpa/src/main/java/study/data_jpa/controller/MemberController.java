@@ -2,9 +2,15 @@ package study.data_jpa.controller;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+import study.data_jpa.dto.MemberDto;
 import study.data_jpa.entity.Member;
 import study.data_jpa.repository.MemberRepository;
 
@@ -52,9 +58,63 @@ public class MemberController {
         return member.getUsername();
     }
 
+    /*
+        Web 확장 - 페이징과 정렬
+        - 스프링 데이터가 제공하는 페이징과 정렬 기능을 스프링 MVC에서 편리하게 사용할 수 있다.
+        - 파라미터로 Pageable을 받을 수 있다.
+        - Pageable은 인터페이스, 실제는 org.springframework.data.domain.PageRequest 객체 생성
+        요청 파라미터
+        - 예) /members?page=0&size=5&sort=id,desc&sort-username,desc
+        - page: 현재 페이지, 0부터 시작
+        - size: 한 페이지에 노출할 데이터 건수
+        - sort: 정렬 조건을 정의, 기본 형식: sort=정렬속성[,정렬속성...][,asc|desc]
+            정렬방향 기본이 asc이므로 생략 가능, 속성마다 정렬 방향을 다르게 적용하려면 sort 파리미터를 여러 번 전달
+
+        [글로벌 설정 방법]
+        spring.data.web.pageable.default-page-size=20 /# 기본 페이지 사이즈/
+        spring.data.web.pageable.max-page-size=2000 /# 최대 페이지 사이즈/
+
+        [개별 설정 방법]
+        @PageableDefault 어노테이션을 사용
+
+        [Page를 1부터 시작하기]
+        - 스프링 데이터는 Page를 0부터 시작한다.
+        - 만약 1부터 시작하려면 아래의 2가지 방법이 존재
+        1. Pageable, Page를 파리미터와 응답 값으로 사용히지 않고, 직접 클래스를 만들어서 처리한다.
+            그리고 직접 PageRequest(Pageable 구현체)를 생성해서 리포지토리에 넘긴다. 물론 응답값도 Page 대신에 직접 만들어서 제공해야 한다.
+        2. spring.data.web.pageable.one-indexed-parameters 를 true로 설정한다. 그런데 이 방법은 web에서 page 파라미터를 -1 처리 할 뿐이다.
+            - 위 설정을 적용하면 클라이언트는 page 파라미터를 1부터 전달할 수 있다.
+                예)
+                    page=1 → 내부적으로는 page=0으로 변환되어 첫 번째 페이지 조회
+                    page=2 → 내부적으로는 page=1로 변환되어 두 번째 페이지 조회
+            - 즉, 이 설정은 요청 파라미터의 page 값을 내부적으로 1 감소시켜 Spring Data의 0-based 페이지 번호 체계에 맞춰주는 기능이다.
+            - 하지만 Spring Data 내부의 Pageable/Page 자체는 여전히 0부터 시작하는 페이지 번호 체계를 사용한다.
+            - 따라서 page=1로 첫 번째 페이지를 요청하더라도, 반환된 Page 객체의 getNumber() 값은 0이다.
+            - 따라서 요청은 1-based로 사용할 수 있지만, Page 객체를 그대로 응답하면 응답의 페이지 번호는 0-based로 노출되는 불일치가 발생할 수 있다.
+            - API 요청과 응답 모두 페이지 번호를 1부터 사용하고 싶다면 Page를 그대로 반환하지 않고 응답 DTO를 만들어
+                Page.getNumber() + 1 값을 반환하는 방식으로 처리하는 것이 좋다.
+    */
+    @GetMapping("/members")
+    public Page<MemberDto> list(@PageableDefault(size = 5, sort = "username", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<Member> page = memberRepository.findAll(pageable);
+        Page<MemberDto> map = page.map(member -> new MemberDto(member));
+        return map;
+    }
+
+    @GetMapping("/members2")
+    public Page<MemberDto> list2(@PageableDefault(size = 5, sort = "username", direction = Sort.Direction.DESC) Pageable pageable) {
+        PageRequest request = PageRequest.of(1, 2);
+
+        Page<Member> page = memberRepository.findAll(request);
+        Page<MemberDto> map = page.map(member -> new MemberDto(member));
+        return map;
+    }
+
     @PostConstruct
     public void init() {
-        memberRepository.save(new Member("userA"));
+        for (int i = 0; i < 100; i++) {
+            memberRepository.save(new Member("user" + i, i));
+        }
     }
 
 }
