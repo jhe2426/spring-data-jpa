@@ -548,4 +548,93 @@ class MemberRepositoryTest {
         assertThat(result.get(0).getUsername()).isEqualTo("member1");
 
     }
+
+    /*
+        Projections: 엔티티 대신에 DTO를 편리하게 조회할 때 사용
+            전체 엔티티가 아니라 회원 이름만 조회하고 싶은 이러한 경우에 유용하게 사용
+    */
+    @Test
+    public void projections() {
+        // given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member member1 = new Member("member1", 0, teamA);
+        Member member2 = new Member("member2", 0, teamA);
+        em.persist(member1);
+        em.persist(member2);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<UsernameOnly> result = memberRepository.findProjectionsByUsername("member1");
+
+        // then
+        for (UsernameOnly usernameOnly : result) {
+            System.out.println("usernameOnly = " + usernameOnly.getUsername());
+        }
+    }
+
+    @Test
+    public void projections2() {
+        // given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member member1 = new Member("member1", 0, teamA);
+        Member member2 = new Member("member2", 0, teamA);
+        em.persist(member1);
+        em.persist(member2);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<UsernameOnlyDto> result = memberRepository.findProjections2ByUsername("member1", UsernameOnlyDto.class);
+
+        // then
+        for (UsernameOnlyDto usernameOnly : result) {
+            System.out.println("usernameOnly = " + usernameOnly.getUsername());
+        }
+    }
+
+    /*
+        Projections 주의
+        - 프로젝션 대상이 root 엔티티이면, JPQL SELECT절 최적화 가능
+        - 프로젝션 대상이 ROOT가 아니면
+            - LEFT OUTER JOIN으로 처리
+            - 모든 필드를 SELECT해서 엔티티로 조회한 다음에 계산을 진행
+
+        정리
+        - 프로젝션 대상이 root 엔티티이면 해당 엔티티의 특정 필드만 결과로 가져올 때 사용하기 유용하다.
+        - 프로젝션 대상이 root 엔티티를 넘어가면 JPQL SELECT 최적화가 안 된다.
+        - 실무의 복잡한 쿼리를 해결하기에는 한계가 있다.
+        - 실무에서는 단순할 때에만 사용하고, 조금만 복잡해지만 QueryDSL을 사용한다.
+    */
+    @Test
+    public void projections3() {
+        // given
+        Team teamA = new Team("teamA");
+        em.persist(teamA);
+
+        Member member1 = new Member("member1", 0, teamA);
+        Member member2 = new Member("member2", 0, teamA);
+        em.persist(member1);
+        em.persist(member2);
+
+        em.flush();
+        em.clear();
+
+        // when
+        List<NestedCloseProjections> result = memberRepository.findProjections2ByUsername("member1", NestedCloseProjections.class);
+
+        // then
+        for (NestedCloseProjections nestedCloseProjections : result) {
+            String username = nestedCloseProjections.getUsername();
+            System.out.println("username = " + username);
+            String teamName = nestedCloseProjections.getTeam().getName();
+            System.out.println("teamName = " + teamName);
+        }
+    }
 }
