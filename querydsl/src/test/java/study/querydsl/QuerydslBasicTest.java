@@ -68,7 +68,7 @@ public class QuerydslBasicTest {
             그리고 eq(), gt(), like() 같은 메서드를 호출하면 실제 Java 연산을 수행하는 것이 아니라,
             age > 20, username like ...와 같은 쿼리 조건을 나타내는 표현식을 생성한다.
             QueryDSL은 이 표현식들을 모아서 최종적으로 JPQL/SQL을 만들어 실행한다.
-        - Java 객체의 실제 값과, 쿼리에서 사용할 엔티티.속성이라는 표현을 구분해야 했기 때문에 QueryDSL은 Q클래스라는 별도의 쿼리용 메타모델을 만든 것
+        - Java 객체의 실제 값과, 쿼리에서 사용할 엔티티.속성이라는 표현을 구분해야 했기 때문에 QueryDSL은 Q클래스라는 별도의 쿼리용 메타 모델을 만든 것
     */
     @Test
     public void startQuerydsl() {
@@ -89,6 +89,62 @@ public class QuerydslBasicTest {
                 .select(member)
                 .from(member)
                 .where(member.username.eq("member1")) // 파라미터 바인딩 처리
+                .fetchOne();
+
+        // then
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    /*
+        JPQL이 제공하는 모든 검색 조건 제공
+        member.username.eq("member1") // username = 'member1'
+        member.username.ne("member1") // username != 'member1'
+        member.username.eq("member1").not() // username != 'member1'
+
+        member.username.isNotNull() // 이름이 is not null
+
+        member.age.in(10, 20) // age in (10,20)
+        member.age.notIn(10, 20) // age not in (10, 20)
+        member.age.between(10, 30) // between 10, 30
+
+        member.age.goe(30) // age >= 30
+        member.age.gt(30) // age > 30
+        member.age.loe(30) // age <= 30
+        member.age.lt(30) // age < 30
+
+        member.username.like("member%") // like 검색, % 위치를 원하는 곳에 넣어서 검색하면 됨
+        member.username.contains("member") // like %member% 검색
+        member.username.startsWith("member") // like member% 검색
+    */
+    @Test
+    public void search() {
+        // when
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1")
+                        .and(member.age.between(10, 30)))
+                .fetchOne();
+
+        // then
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+
+    /*
+        where() 메서드에 파라미터를 여러 개 넣으면 and 조건으로 다 자동으로 붙여줌
+        위의 테스트처럼 .and()를 직접 작성해서 표현해도 되고 where 메서드의 조건문을 전달해도 and 조건으로 조립을 해줌
+        실무에서는 where()에 매개변수를 전달하는 것으로 and 조건을 조립한다고 함 왜냐하면 null을 입력되면 해당 값은 무시해주고 조립을 해주기 때문에
+        그래서 동적 쿼리문을 작성하기에 너무 편리하게 구현할 수 있기 때문이다.
+    */
+    @Test
+    public void searchAndParam() {
+        // when
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(
+                        member.username.eq("member1"),
+                        member.age.eq(10)
+                )
                 .fetchOne();
 
         // then
