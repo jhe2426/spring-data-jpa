@@ -1,5 +1,6 @@
 package study.querydsl;
 
+import com.querydsl.core.QueryResults;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import org.assertj.core.api.Assertions;
@@ -12,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.entity.Member;
 import study.querydsl.entity.QMember;
 import study.querydsl.entity.Team;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 import static study.querydsl.entity.QMember.*;
@@ -149,5 +152,46 @@ public class QuerydslBasicTest {
 
         // then
         assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    /*
+        결과 조회
+        - fetch(): 리스트 조회, 데이터 없으면 빈 리스트 반환
+        - fetchOne(): 단 건 조회
+            - 결과가 없으면 : null
+            - 결과가 둘 이상이면: com.querydsl.core.NonUniqueResultException
+        - fetchFirst(): limit(1).fetchOne()
+
+        fetchResults(), fetchCount()를 향후에는 지원하지 않음
+            단순한 쿼리에서는 해당 기능들이 잘 동작하지만, 복잡한 쿼리에서는 제대로 동작하지 않기 때문에
+        - fetchResults(): 페이징 정보 포함, total count 쿼리 추가 실행
+        - fetchCount(): count 쿼리로 변경해서 count 수 조회
+    */
+    
+    @Test
+    public void resultFetch() {
+        List<Member> fetch = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        Member fetchOne = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        Member fetchFirst = queryFactory
+                .selectFrom(member)
+                .fetchFirst();
+
+        QueryResults<Member> results = queryFactory
+                .selectFrom(member)
+                .fetchResults();
+
+        results.getTotal();
+        List<Member> content = results.getResults();
+
+        long total = queryFactory
+                .selectFrom(member)
+                .fetchCount();
     }
 }
