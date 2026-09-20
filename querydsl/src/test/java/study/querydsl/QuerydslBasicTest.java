@@ -1,6 +1,7 @@
 package study.querydsl;
 
 import com.querydsl.core.QueryResults;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
 import org.assertj.core.api.Assertions;
@@ -9,6 +10,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.entity.Member;
 import study.querydsl.entity.QMember;
@@ -222,5 +226,57 @@ public class QuerydslBasicTest {
         assertThat(member5.getUsername()).isEqualTo("member5");
         assertThat(member6.getUsername()).isEqualTo("member6");
         assertThat(memberNull.getUsername()).isNull();
+    }
+
+    @Test
+    public void paging1() {
+        // when
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .orderBy(member.username.desc())
+                .offset(1)
+                .limit(2)
+                .fetch();
+
+        // then
+        assertThat(result.size()).isEqualTo(2);
+    }
+
+    @Test
+    public void paging2() {
+        // given
+        PageRequest pageable = PageRequest.of(1, 2);
+
+        // when
+        List<Member> content = queryFactory
+                .selectFrom(member)
+                .orderBy(member.username.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        JPAQuery<Long> countQuery = queryFactory
+                .select(member.count())
+                .from(member);
+
+        Page<Member> result = PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+
+        // then
+        assertThat(result.getTotalElements()).isEqualTo(4);
+        assertThat(result.getSize()).isEqualTo(2);
+        assertThat(result.getPageable().getOffset()).isEqualTo(2);
+        assertThat(result.getContent()).hasSize(2);
+    }
+
+    @Test
+    public void count() {
+        // when
+        Long totalCount = queryFactory
+                .select(member.count())
+                .from(member)
+                .fetchOne();
+
+        // then
+        assertThat(totalCount).isEqualTo(4);
     }
 }
