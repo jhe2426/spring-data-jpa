@@ -373,4 +373,77 @@ public class QuerydslBasicTest {
                 .extracting("username")
                 .containsExactly("teamA", "teamB");
     }
+
+
+
+    /*
+        예) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
+        JPQL: select m, t from Member m left join m.team t on t.name = 'teamA'
+    */
+    @Test
+    public void join_on_filtering1() {
+        // when
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                .leftJoin(member.team, team).on(team.name.eq("teamA"))
+                .fetch();
+
+        // then
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
+    /*
+        on절을 활용해서 조인 대상을 필터링할 때, 외부조인이 아니라 내부조인을 사용하면, where 절에서 필터링하는 것과 기능이 동일하다.
+        따라서 on절을 활용한 조인 대상 필터링을 사용할 때, 내부조인이면 익숙한 where절로 해결하고, 외부조인이 필요한 경우에만 on 절을 활용해서
+        필터링을 하면 된다.
+    */
+    @Test
+    public void join_on_filtering2() {
+        // when
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                .join(member.team, team)
+//                .on(team.name.eq("teamA"))
+                .where(team.name.eq("teamA"))
+                .fetch();
+
+        // then
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
+    /*
+       연관관계가 없는 엔티티 외부 조인
+       회원의 이름이 팀 이름과 같은 대상 외부 조인
+
+       하이버네이트 5.1부터는 on을 사용해서 서로 관계가 없는 필드로 외부 조인하는 기능이 추가 됨. 물론 내부 조인도 가능
+       주의 조인을 위해서는 각각의 엔티티를 넣어줘야 함
+       일반조인: leftJoin(member.team, team) member.team이렇게 넘겨주면 on절에 team.team_id = member.team_id를 자동을 붙여주기 때문
+       on조인: from(member).leftJoin(team).on(xxx)
+   */
+    @Test
+    public void join_on_no_relation() {
+        // given
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+        em.persist(new Member("teamC"));
+
+        // when
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                // 조인에 member.team이 아닌 team만 작성을 하게 되면 on절에 team.team_id = member.team_id이 들어가지 않게 됨
+                .join(team).on(member.username.eq(team.name))
+                .fetch();
+
+        // then
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
 }
