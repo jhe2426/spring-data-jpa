@@ -3,6 +3,7 @@ package study.querydsl;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -610,6 +611,41 @@ public class QuerydslBasicTest {
                         .when(member.age.between(21, 30)).then("21~30살")
                         .otherwise("기타"))
                 .from(member)
+                .fetch();
+
+        // then
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    @Test
+    public void constant() {
+        // when
+        List<Tuple> result = queryFactory
+                .select(member.username, Expressions.constant("A"))
+                .from(member)
+                .fetch();
+
+        // then
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
+    /*
+        member.age.stringValue() 부분이 중요한데, 문자가 아닌 다른 타입들은 stringValue()로 문자로 변환할 수 있다.
+        이 방법은 ENUM을 처리할 때에도 자주 사용한다.
+        엔티티 타입이 enum 타입이면 QueryDSL에서도 해당 타입으로 인식하기 때문에 문자열 연산이 필요한 경우 stringValue()를 사용해 문자열 표현식으로 변환한다.
+    */
+    @Test
+    public void concat() {
+        // when
+        // {username}_{age}
+        List<String> result = queryFactory
+                .select(member.username.concat("_").concat(member.age.stringValue()))
+                .from(member)
+                .where(member.username.eq("member1"))
                 .fetch();
 
         // then
