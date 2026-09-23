@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.dto.MemberDto;
+import study.querydsl.dto.QMemberDto;
 import study.querydsl.dto.UserDto;
 import study.querydsl.entity.Member;
 import study.querydsl.entity.QMember;
@@ -792,6 +793,25 @@ public class QuerydslBasicTest {
         // then
         for (UserDto userDto : result) {
             System.out.println("userDto = " + userDto);
+        }
+    }
+
+    /*
+        QMemberDto를 사용하면 DTO 생성자를 기반으로 Q타입이 생성되므로 컴파일 시점에 타입과 생성자 파라미터를 검증할 수 있어 안전하다.
+        하지만 DTO에 QueryDSL 어노테이션을 유지해야 하는 점과 DTO까지 Q파일이 생성된다.
+        따라서 추후 QueryDSL을 제거하거나 다른 조회 기술로 변경할 경우 조회 코드뿐만 아니라 @QueryProjection이 적용된 DTO까지 수정해야 하는 단점이 있다.
+    */
+    @Test
+    public void findDtoQueryProjection() {
+        // when
+        List<MemberDto> result = queryFactory
+                .select(new QMemberDto(member.username, member.age))
+                .from(member)
+                .fetch();
+
+        // then
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
         }
     }
 }
