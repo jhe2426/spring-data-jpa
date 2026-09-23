@@ -1,5 +1,6 @@
 package study.querydsl;
 
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ExpressionUtils;
@@ -814,4 +815,40 @@ public class QuerydslBasicTest {
             System.out.println("memberDto = " + memberDto);
         }
     }
+
+    @Test
+    public void dynamicQuery_BooleanBuilder() {
+        // when
+        String usernameParam = "member1";
+        Integer ageParam = null;
+
+        List<Member> result = searchMember1(usernameParam, ageParam);
+
+        // then
+        assertThat(result.size()).isEqualTo(1);
+    }
+
+    private List<Member> searchMember1(String usernameCond, Integer ageCond) {
+
+        /*
+            BooleanBuilder builder = new BooleanBuilder(member.username.eq(usernameCond));
+            usernameCond값이 항상 null이 아니라면 초기 값또한 넣을 수 있음
+            usernameCond값이 null이면 java.lang.IllegalArgumentException: 에러가 발생
+        */
+        BooleanBuilder builder = new BooleanBuilder(member.username.eq(usernameCond));
+        if (usernameCond != null) {
+            builder.and(member.username.eq(usernameCond));
+        }
+
+        if (ageCond != null) {
+            builder.and(member.age.eq(ageCond));
+        }
+
+        return queryFactory
+                .selectFrom(member)
+                .where(builder)
+                .fetch();
+
+    }
+
 }
