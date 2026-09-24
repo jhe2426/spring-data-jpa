@@ -10,6 +10,7 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
+import com.querydsl.jpa.impl.JPADeleteClause;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;
@@ -24,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.support.PageableExecutionUtils;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.dto.MemberDto;
 import study.querydsl.dto.QMemberDto;
@@ -883,5 +885,109 @@ public class QuerydslBasicTest {
 
     private Predicate allEq(String usernameCond, Integer ageCond) {
         return usernameEq(usernameCond).and(ageEq(ageCond));
+    }
+
+    @Test
+//    @Commit
+    public void bulkUpdate() {
+
+        // member1 = 10 -> DB member1
+        // member2 = 20 -> DB member2
+        // member3 = 30 -> DB member3
+        // member4 = 40 -> DB member4
+        // when
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        // member1 = 10 -> DB 비회원
+        // member2 = 20 -> DB 비회원
+        // member3 = 30 -> DB member3
+        // member4 = 40 -> DB member4
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+        // 이렇게 디비에서 조회하면 영속성 컨테스트가 지금 디비에서 조회한 결과의 값들로 값이 같지 않다면 변경(반영)해주지 않을까?
+        // 아님 이미 해당 pk로 관리되어있는 엔티티가 영속성 컨텍스트에 존재한다면 지금 이렇게 조회를 한다고 해도 해당 값으로 변경해주지 않음
+        // 즉, 영속성 컨텍스트에 있는 값을 항상 우선순위로 두기 때문에 벌크 연산을 할 때에는 이런 점을 주의해야한다.
+        // 만약 디비의 변경된 값으로 영속성 컨텍스트에 관리되도록 하고 싶다면 영속성 컨텍스트를 깨끗이 비운 다음에 조회 쿼리를 통해서 변경된 값을
+        // 다시 영속성 컨텍스트에 등록하는 방식으로 해야한다.
+        for (Member member : result) {
+            System.out.println("member = " + member);
+        }
+
+        // then
+        assertThat(count).isEqualTo(2);
+    }
+
+    @Test
+//    @Commit
+    public void bulkUpdate2() {
+
+        // member1 = 10 -> DB member1
+        // member2 = 20 -> DB member2
+        // member3 = 30 -> DB member3
+        // member4 = 40 -> DB member4
+        // when
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        // member1 = 10 -> DB 비회원
+        // member2 = 20 -> DB 비회원
+        // member3 = 30 -> DB member3
+        // member4 = 40 -> DB member4
+
+        em.flush();
+        em.clear();
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        for (Member member : result) {
+            System.out.println("member = " + member);
+        }
+
+        // then
+        assertThat(count).isEqualTo(2);
+    }
+    
+    @Test
+    public void bulkOperation() {
+        // when
+        queryFactory
+                .update(member)
+                .set(member.age, member.age.add(1)) // minus는 없어서 뺴는 연산을 하고 싶으면 add(-1)메서드에 음수를 넣으면 됨
+                .execute();
+
+        queryFactory
+                .update(member)
+                .set(member.age, member.age.multiply(2)) // 곱하기
+                .execute();
+    }
+
+    @Test
+    public void bulkDelete() {
+        // when
+        JPADeleteClause count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18));
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        // then
+        for (Member member : result) {
+            // 벌크 연산 후 영속성 컨텍스를 초기화하지 않고 조회 쿼리문을 날린 후 조회해보면 삭제된 멤버도 조회가 됨
+            // 그래서 벌크 연산 후에 영속성 컨텍스트를 사용할 일이 있다면 초기화를 하고 난 뒤에 사용해야 한다.
+            System.out.println("member = " + member);
+        }
     }
 }
